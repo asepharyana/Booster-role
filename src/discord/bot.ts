@@ -37,7 +37,11 @@ export function attachBotHandlers(client: Client, config: AppConfig): void {
   });
 }
 
-function resolveAnchorPosition(guild: { roles: { cache: { get(id: string): { position: number } | undefined } } }, anchorRoleId: string | null): number {
-  if (!anchorRoleId) return 1;
-  return guild.roles.cache.get(anchorRoleId)?.position ?? 1;
+function resolveAnchorPosition(guild: { members: { me: { roles: { highest: { position: number } } } | null }; roles: { cache: { get(id: string): { position: number } | undefined } } }, anchorRoleId: string | null): number {
+  if (!anchorRoleId) return botRolePosition(guild);
+  return guild.roles.cache.get(anchorRoleId)?.position ?? botRolePosition(guild);
+}
+
+function botRolePosition(guild: { members: { me: { roles: { highest: { position: number } } } | null } }): number {
+  return guild.members.me?.roles.highest.position ?? 1;
 }

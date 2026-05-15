@@ -1,3 +1,4 @@
+import { MessageFlags } from "discord.js";
 import type { BoosterRoleRecord, RoleIcon } from "../services/boosterRoleService";
 
 export type ChatInputInteractionLike = {
@@ -5,7 +6,7 @@ export type ChatInputInteractionLike = {
   guildId: string | null;
   user: { id: string };
   isChatInputCommand(): boolean;
-  reply(input: { content: string; ephemeral: boolean }): Promise<unknown>;
+  reply(input: { content: string; flags: MessageFlags.Ephemeral }): Promise<unknown>;
   options: {
     getSubcommand(): string;
     getString(name: string): string | null;
@@ -46,37 +47,37 @@ export async function handleInteraction(
         icon: optionalIcon(interaction, "icon"),
         isBoosting: await deps.isBoosting(guildId, userId)
       });
-      await interaction.reply({ content: `Booster role created: <@&${role.roleId}>`, ephemeral: true });
+      await interaction.reply({ content: `Booster role created: <@&${role.roleId}>`, flags: MessageFlags.Ephemeral });
       return;
     }
 
     if (subcommand === "rename") {
       await service.renameRole({ guildId, userId, name: requireString(interaction, "name") });
-      await interaction.reply({ content: "Booster role renamed.", ephemeral: true });
+      await interaction.reply({ content: "Booster role renamed.", flags: MessageFlags.Ephemeral });
       return;
     }
 
     if (subcommand === "recolor") {
       await service.recolorRole({ guildId, userId, color: requireString(interaction, "color") });
-      await interaction.reply({ content: "Booster role color updated.", ephemeral: true });
+      await interaction.reply({ content: "Booster role color updated.", flags: MessageFlags.Ephemeral });
       return;
     }
 
     if (subcommand === "icon") {
       await service.setRoleIcon({ guildId, userId, icon: requireIcon(interaction, "image") });
-      await interaction.reply({ content: "Booster role icon updated.", ephemeral: true });
+      await interaction.reply({ content: "Booster role icon updated.", flags: MessageFlags.Ephemeral });
       return;
     }
 
     if (subcommand === "delete") {
       await service.deleteRole({ guildId, userId });
-      await interaction.reply({ content: "Booster role deleted.", ephemeral: true });
+      await interaction.reply({ content: "Booster role deleted.", flags: MessageFlags.Ephemeral });
       return;
     }
 
     throw new Error("Unknown booster-role subcommand");
   } catch (error) {
-    await interaction.reply({ content: error instanceof Error ? error.message : "Command failed", ephemeral: true });
+    await interaction.reply({ content: error instanceof Error ? error.message : "Command failed", flags: MessageFlags.Ephemeral });
   }
 }
 

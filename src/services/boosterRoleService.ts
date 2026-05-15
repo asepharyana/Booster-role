@@ -28,6 +28,7 @@ export type RoleRepository = {
   listRoles(): Promise<ExistingRole[]>;
   createRole(input: { name: string; color: string | null; permissions: string[]; position: number }): Promise<{ id: string }>;
   updateRole(roleId: string, input: { name?: string; color?: string | null; icon?: string | null }): Promise<void>;
+  assignRole(userId: string, roleId: string): Promise<void>;
   deleteRole(roleId: string): Promise<void>;
 };
 
@@ -82,6 +83,8 @@ export class BoosterRoleService {
       this.validateRoleIcon(input.icon);
       await this.roles.updateRole(role.id, { icon: input.icon.dataUri });
     }
+
+    await this.roles.assignRole(userId, role.id);
 
     const timestamp = this.now();
     const record = {

@@ -12,7 +12,7 @@ export class DiscordRoleRepository implements RoleRepository {
   async createRole(input: { name: string; color: string | null; permissions: string[]; position: number }): Promise<{ id: string }> {
     const role = await this.guild.roles.create({
       name: input.name,
-      color: toDiscordColor(input.color),
+      colors: toDiscordColors(input.color),
       permissions: 0n
     });
 
@@ -24,9 +24,14 @@ export class DiscordRoleRepository implements RoleRepository {
     const role = await this.fetchRole(roleId);
     await role.edit({
       name: input.name,
-      color: input.color === undefined ? undefined : toDiscordColor(input.color),
+      colors: input.color === undefined ? undefined : toDiscordColors(input.color),
       icon: input.icon === undefined ? undefined : input.icon
     });
+  }
+
+  async assignRole(userId: string, roleId: string): Promise<void> {
+    const member = await this.guild.members.fetch(userId);
+    await member.roles.add(roleId);
   }
 
   async deleteRole(roleId: string): Promise<void> {
@@ -48,6 +53,6 @@ export class DiscordRoleRepository implements RoleRepository {
   }
 }
 
-function toDiscordColor(color: string | null): ColorResolvable | undefined {
-  return color === null ? undefined : (color as ColorResolvable);
+function toDiscordColors(color: string | null): { primaryColor: ColorResolvable } | undefined {
+  return color === null ? undefined : { primaryColor: color as ColorResolvable };
 }

@@ -20,6 +20,7 @@ class MemoryRoleStore {
 class FakeRoleRepository implements RoleRepository {
   roles = new Map<string, { id: string; name: string; permissions: string[]; position: number; color: string | null; icon?: string | null }>();
   deletedRoleIds: string[] = [];
+  assignedRoles: Array<{ userId: string; roleId: string }> = [];
 
   constructor(initialRoles = [{ id: "existing-vip", name: "VIP", permissions: [], position: 1, color: null }]) {
     for (const role of initialRoles) {
@@ -43,6 +44,10 @@ class FakeRoleRepository implements RoleRepository {
     this.roles.set(roleId, { ...role, ...input });
   }
 
+  async assignRole(userId: string, roleId: string) {
+    this.assignedRoles.push({ userId, roleId });
+  }
+
   async deleteRole(roleId: string) {
     this.deletedRoleIds.push(roleId);
     this.roles.delete(roleId);
@@ -60,6 +65,7 @@ describe("BoosterRoleService", () => {
     expect(claimed.roleId).toBe("created-2");
     expect(roles.roles.get(claimed.roleId)?.permissions).toEqual([]);
     expect(roles.roles.get(claimed.roleId)?.position).toBe(9);
+    expect(roles.assignedRoles).toEqual([{ userId: "user", roleId: claimed.roleId }]);
     expect(await store.findByUser("guild", "user")).toEqual(claimed);
   });
 

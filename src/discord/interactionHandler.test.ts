@@ -1,7 +1,8 @@
+import { MessageFlags } from "discord.js";
 import { describe, expect, test } from "bun:test";
 import { handleInteraction, type BoosterRoleCommandService, type ChatInputInteractionLike } from "./interactionHandler";
 
-type Reply = { content: string; ephemeral: boolean };
+type Reply = { content: string; flags: MessageFlags.Ephemeral };
 
 class FakeInteraction implements ChatInputInteractionLike {
   commandName = "booster-role";
@@ -59,7 +60,7 @@ describe("handleInteraction", () => {
     await handleInteraction(interaction, service, { isBoosting: async () => true });
 
     expect(service.calls).toEqual(["claim"]);
-    expect(interaction.replies[0]).toEqual({ content: "Booster role created: <@&role-1>", ephemeral: true });
+    expect(interaction.replies[0]).toEqual({ content: "Booster role created: <@&role-1>", flags: MessageFlags.Ephemeral });
   });
 
   test("routes update subcommands and replies", async () => {
@@ -70,7 +71,7 @@ describe("handleInteraction", () => {
       await handleInteraction(interaction, service, { isBoosting: async () => true });
 
       expect(service.calls).toEqual([subcommand]);
-      expect(interaction.replies[0]?.ephemeral).toBe(true);
+      expect(interaction.replies[0]?.flags).toBe(MessageFlags.Ephemeral);
     }
   });
 
@@ -83,6 +84,6 @@ describe("handleInteraction", () => {
 
     await handleInteraction(interaction, service, { isBoosting: async () => true });
 
-    expect(interaction.replies[0]).toEqual({ content: "Role name is already used", ephemeral: true });
+    expect(interaction.replies[0]).toEqual({ content: "Role name is already used", flags: MessageFlags.Ephemeral });
   });
 });
