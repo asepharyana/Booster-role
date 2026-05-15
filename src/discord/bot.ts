@@ -1,6 +1,7 @@
 import { Database } from "bun:sqlite";
 import type { Client } from "discord.js";
 import type { AppConfig } from "../config";
+import { prepareSqlitePath } from "../db/sqlitePath";
 import { BoosterRoleService } from "../services/boosterRoleService";
 import { BunSqliteBoosterRoleStore } from "../services/bunSqliteBoosterRoleStore";
 import { DiscordRoleRepository } from "../services/discordRoleRepository";
@@ -8,7 +9,7 @@ import { handleGuildMemberUpdate } from "./events/guildMemberUpdate";
 import { handleInteraction } from "./interactionHandler";
 
 export function attachBotHandlers(client: Client, config: AppConfig): void {
-  const db = new Database(config.databaseUrl.replace(/^file:/, ""));
+  const db = new Database(prepareSqlitePath(config.databaseUrl));
   const store = new BunSqliteBoosterRoleStore(db);
 
   client.on("interactionCreate", async (interaction) => {
