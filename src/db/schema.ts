@@ -8,6 +8,7 @@ export const boosterRoles = sqliteTable(
     roleId: text("role_id").notNull(),
     name: text("name").notNull(),
     color: text("color"),
+    icon: text("icon"),
     createdAt: integer("created_at").notNull(),
     updatedAt: integer("updated_at").notNull()
   },

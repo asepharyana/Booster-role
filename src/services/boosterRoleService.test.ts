@@ -18,7 +18,7 @@ class MemoryRoleStore {
 }
 
 class FakeRoleRepository implements RoleRepository {
-  roles = new Map<string, { id: string; name: string; permissions: string[]; position: number; color: string | null }>();
+  roles = new Map<string, { id: string; name: string; permissions: string[]; position: number; color: string | null; icon?: string | null }>();
   deletedRoleIds: string[] = [];
 
   constructor(initialRoles = [{ id: "existing-vip", name: "VIP", permissions: [], position: 1, color: null }]) {
@@ -37,7 +37,7 @@ class FakeRoleRepository implements RoleRepository {
     return { id };
   }
 
-  async updateRole(roleId: string, input: { name?: string; color?: string | null }) {
+  async updateRole(roleId: string, input: { name?: string; color?: string | null; icon?: string | null }) {
     const role = this.roles.get(roleId);
     if (!role) throw new Error("Role does not exist");
     this.roles.set(roleId, { ...role, ...input });
@@ -89,6 +89,28 @@ describe("BoosterRoleService", () => {
 
     expect(roles.roles.get(claimed.roleId)?.name).toBe("Renamed");
     await expect(service.renameRole({ guildId: "guild", userId: "attacker", name: "Stolen" })).rejects.toThrow("No booster role found");
+  });
+
+  test("sets icon only on the stored role owned by the user", async () => {
+    const store = new MemoryRoleStore();
+    const roles = new FakeRoleRepository([]);
+    const service = new BoosterRoleService(store, roles, { anchorPosition: 10 });
+    const claimed = await service.claimRole({ guildId: "guild", userId: "user", name: "First Role", color: null, verifiedBoostCount: 2 });
+
+    await service.setRoleIcon({ guildId: "guild", userId: "user", icon: { contentType: "image/png", size: 128_000, dataUri: "data:image/png;base64,abc" } });
+
+    expect(roles.roles.get(claimed.roleId)?.icon).toBe("data:image/png;base64,abc");
+    await expect(service.setRoleIcon({ guildId: "guild", userId: "attacker", icon: { contentType: "image/png", size: 128_000, dataUri: "data:image/png;base64,abc" } })).rejects.toThrow("No booster role found");
+  });
+
+  test("rejects oversized or non-image role icons", async () => {
+    const store = new MemoryRoleStore();
+    const roles = new FakeRoleRepository([]);
+    const service = new BoosterRoleService(store, roles, { anchorPosition: 10, maxIconBytes: 256_000 });
+    await service.claimRole({ guildId: "guild", userId: "user", name: "First Role", color: null, verifiedBoostCount: 2 });
+
+    await expect(service.setRoleIcon({ guildId: "guild", userId: "user", icon: { contentType: "text/html", size: 100, dataUri: "data:text/html;base64,abc" } })).rejects.toThrow("Role icon must be an image");
+    await expect(service.setRoleIcon({ guildId: "guild", userId: "user", icon: { contentType: "image/png", size: 256_001, dataUri: "data:image/png;base64,abc" } })).rejects.toThrow("Role icon is too large");
   });
 
   test("removes managed role when eligibility is lost", async () => {

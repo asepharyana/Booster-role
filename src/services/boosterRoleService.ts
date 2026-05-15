@@ -26,12 +26,19 @@ export type BoosterRoleStore = {
 export type RoleRepository = {
   listRoles(): Promise<ExistingRole[]>;
   createRole(input: { name: string; color: string | null; permissions: string[]; position: number }): Promise<{ id: string }>;
-  updateRole(roleId: string, input: { name?: string; color?: string | null }): Promise<void>;
+  updateRole(roleId: string, input: { name?: string; color?: string | null; icon?: string | null }): Promise<void>;
   deleteRole(roleId: string): Promise<void>;
+};
+
+export type RoleIcon = {
+  contentType: string;
+  size: number;
+  dataUri: string;
 };
 
 export type BoosterRoleServiceOptions = {
   anchorPosition: number;
+  maxIconBytes?: number;
   now?: () => number;
 };
 
@@ -98,6 +105,13 @@ export class BoosterRoleService {
     await this.roles.updateRole(record.roleId, { color: normalizeHexColor(color) });
   }
 
+  async setRoleIcon(input: { guildId: string; userId: string; icon: RoleIcon }): Promise<void> {
+    const { guildId, userId, icon } = input;
+    const record = await this.getUserRecord(guildId, userId);
+    this.validateRoleIcon(icon);
+    await this.roles.updateRole(record.roleId, { icon: icon.dataUri });
+  }
+
   async deleteRole(input: { guildId: string; userId: string }): Promise<void> {
     const { guildId, userId } = input;
     const record = await this.getUserRecord(guildId, userId);
@@ -112,6 +126,16 @@ export class BoosterRoleService {
 
     await this.roles.deleteRole(record.roleId);
     await this.store.delete(guildId, userId);
+  }
+
+  private validateRoleIcon(icon: RoleIcon): void {
+    if (!icon.contentType.startsWith("image/")) {
+      throw new Error("Role icon must be an image");
+    }
+
+    if (icon.size > (this.options.maxIconBytes ?? 512_000)) {
+      throw new Error("Role icon is too large");
+    }
   }
 
   private async getUserRecord(guildId: string, userId: string): Promise<BoosterRoleRecord> {
