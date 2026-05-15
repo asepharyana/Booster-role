@@ -53,6 +53,8 @@ SQLite default tersimpan di `./data/booster-role.sqlite`.
 bun run dev
 ```
 
+Saat startup, bot otomatis register slash command ke guild dari `DISCORD_GUILD_ID`. Pastikan bot di-invite dengan scope `applications.commands`.
+
 ## Testing
 
 ```bash
