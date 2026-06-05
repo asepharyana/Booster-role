@@ -1,5 +1,6 @@
 import { MessageFlags, PermissionFlagsBits } from "discord.js";
 import { logger } from "../logger";
+import { ValidationError, NotFoundError, PermissionError } from "../domain/errors";
 import type { BoosterRoleRecord, RoleIcon } from "../services/boosterRoleService";
 
 export type ChatInputInteractionLike = {
@@ -124,17 +125,21 @@ export async function handleInteraction(
 }
 
 function toUserErrorMessage(error: unknown): string {
-  if (!(error instanceof Error)) return "Command failed";
-
-  if (error.message.includes("Failed query")) {
-    return "Failed to save booster role. Any created role was cleaned up. Try again.";
+  if (error instanceof ValidationError || error instanceof NotFoundError || error instanceof PermissionError) {
+    return error.message;
   }
 
-  if (error.message.includes("Missing Permissions")) {
-    return "Bot is missing permissions or role position to manage this role.";
+  if (error instanceof Error) {
+    if (error.message.includes("Missing Permissions")) {
+      return "Bot is missing permissions or role position to manage this role.";
+    }
+
+    if (error.message.includes("Failed query") || error.message.includes("insert")) {
+      return "Failed to save booster role. Any created role was cleaned up. Try again.";
+    }
   }
 
-  return error.message;
+  return "Command failed";
 }
 
 function requireGuildId(guildId: string | null): string {

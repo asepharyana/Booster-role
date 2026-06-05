@@ -1,12 +1,16 @@
 import { assertBoostEligibility } from "../domain/boostEligibility";
 import {
   assertRoleNameIsAvailable,
+  assertCanManageStoredRole,
+  assertCosmeticPermissions,
   assertRolePositionIsSafe,
   normalizeHexColor,
   normalizeOptionalHexColor,
   validateRoleName,
-  type ExistingRole
+  type ExistingRole,
+  type ManagedRoleIdentity
 } from "../domain/roleGuards";
+import { ValidationError, NotFoundError } from "../domain/errors";
 
 export type BoosterRoleRecord = {
   guildId: string;
@@ -73,7 +77,7 @@ export class BoosterRoleService {
 
     const existingRecord = await this.store.findByUser(guildId, userId);
     if (existingRecord) {
-      throw new Error("User already has a booster role");
+      throw new ValidationError("User already has a booster role");
     }
 
     const name = validateRoleName(input.name);
@@ -81,6 +85,7 @@ export class BoosterRoleService {
     const color2 = normalizeOptionalHexColor(input.color2 ?? null);
     const colors = resolveGradientColors(color, color2);
     assertRoleNameIsAvailable(name, await this.roles.listRoles());
+    assertCosmeticPermissions([]); // booster roles always start with no permissions
 
     const position = this.options.anchorPosition - 1;
     assertRolePositionIsSafe(position, this.options.anchorPosition);
@@ -121,6 +126,7 @@ export class BoosterRoleService {
   async renameRole(input: { guildId: string; userId: string; name: string }): Promise<void> {
     const { guildId, userId } = input;
     const record = await this.getUserRecord(guildId, userId);
+    assertCanManageStoredRole(this.identity(record), { guildId, userId, roleId: record.roleId });
     const name = validateRoleName(input.name);
     assertRoleNameIsAvailable(name, (await this.roles.listRoles()).filter((role) => role.id !== record.roleId));
     await this.roles.updateRole(record.roleId, { name });
@@ -129,6 +135,7 @@ export class BoosterRoleService {
   async recolorRole(input: { guildId: string; userId: string; color: string; color2?: string | null }): Promise<void> {
     const { guildId, userId, color, color2 } = input;
     const record = await this.getUserRecord(guildId, userId);
+    assertCanManageStoredRole(this.identity(record), { guildId, userId, roleId: record.roleId });
     const primaryColor = normalizeHexColor(color);
     const secondaryColor = normalizeOptionalHexColor(color2 ?? null);
     const colors = resolveGradientColors(primaryColor, secondaryColor);
@@ -138,6 +145,7 @@ export class BoosterRoleService {
   async setRoleIcon(input: { guildId: string; userId: string; icon: RoleIcon }): Promise<void> {
     const { guildId, userId, icon } = input;
     const record = await this.getUserRecord(guildId, userId);
+    assertCanManageStoredRole(this.identity(record), { guildId, userId, roleId: record.roleId });
     this.validateRoleIcon(icon);
     await this.roles.updateRole(record.roleId, { icon: icon.dataUri });
   }
@@ -145,6 +153,7 @@ export class BoosterRoleService {
   async deleteRole(input: { guildId: string; userId: string }): Promise<void> {
     const { guildId, userId } = input;
     const record = await this.getUserRecord(guildId, userId);
+    assertCanManageStoredRole(this.identity(record), { guildId, userId, roleId: record.roleId });
     await this.roles.deleteRole(record.roleId);
     await this.store.delete(guildId, userId);
   }
@@ -169,20 +178,24 @@ export class BoosterRoleService {
 
   private validateRoleIcon(icon: RoleIcon): void {
     if (!icon.contentType.startsWith("image/")) {
-      throw new Error("Role icon must be an image");
+      throw new ValidationError("Role icon must be an image");
     }
 
     if (icon.size > (this.options.maxIconBytes ?? 512_000)) {
-      throw new Error("Role icon is too large");
+      throw new ValidationError("Role icon is too large");
     }
   }
 
   private async getUserRecord(guildId: string, userId: string): Promise<BoosterRoleRecord> {
     const record = await this.store.findByUser(guildId, userId);
     if (!record) {
-      throw new Error("No booster role found for this user");
+      throw new NotFoundError("No booster role found for this user");
     }
     return record;
+  }
+
+  private identity(record: BoosterRoleRecord): ManagedRoleIdentity {
+    return { guildId: record.guildId, userId: record.userId, roleId: record.roleId };
   }
 }
 
