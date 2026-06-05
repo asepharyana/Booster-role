@@ -5,6 +5,7 @@ import { BoosterRoleService } from "../services/boosterRoleService";
 import { DrizzleBoosterRoleStore } from "../services/drizzleBoosterRoleStore";
 import { DiscordRoleRepository } from "../services/discordRoleRepository";
 import { handleGuildMemberUpdate } from "./events/guildMemberUpdate";
+import { sendBoostGreeting } from "./events/boostGreeting";
 import { handleInteraction } from "./interactionHandler";
 
 export function attachBotHandlers(client: Client, config: AppConfig): void {
@@ -26,13 +27,25 @@ export function attachBotHandlers(client: Client, config: AppConfig): void {
   });
 
   client.on("guildMemberUpdate", async (oldMember, newMember) => {
+    const eligibilityRoleId = config.boosterEligibilityRoleId;
+
+    // Detect boost gain: member just acquired the booster eligibility role
+    const hadBooster = oldMember.roles.cache.has(eligibilityRoleId);
+    const hasBooster = newMember.roles.cache.has(eligibilityRoleId);
+    if (!hadBooster && hasBooster && config.boosterGreetingChannelId) {
+      await sendBoostGreeting(newMember, config.boosterGreetingChannelId).catch((err) => {
+        logger.error("Failed to send boost greeting", { error: String(err), userId: newMember.id });
+      });
+    }
+
+    // Handle boost loss (existing behaviour)
     const service = new BoosterRoleService(
       store,
       new DiscordRoleRepository(newMember.guild),
       { anchorPosition: resolveAnchorPosition(newMember.guild, config.boosterRoleAnchorRoleId) }
     );
 
-    await handleGuildMemberUpdate(oldMember, newMember, service, config.boosterEligibilityRoleId);
+    await handleGuildMemberUpdate(oldMember, newMember, service, eligibilityRoleId);
   });
 }
 
