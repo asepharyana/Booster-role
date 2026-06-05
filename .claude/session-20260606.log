@@ -1,0 +1,13 @@
+[17:34:23] PROMPT: fix bug "Bun v1.3.4 (Linux x64 baseline)
+{"guildId":"1206212469148749834","level":"info","message":"Registering guild commands","timestamp":
+[17:34:32] PROMPT: fix bug "Bun v1.3.4 (Linux x64 baseline)
+{"guildId":"1206212469148749834","level":"info","message":"Registering guild commands","timestamp":
+[17:34:46] TASK+: unknown
+[17:34:46] TASK+: unknown
+[17:34:46] TASK+: unknown
+[17:34:57] AGENT START: 
+[17:35:04] AGENT SPAWN: coder-workflow:codebase-qa-agent
+[17:35:47] FAIL [Read]: File does not exist. Note: your current working directory is /mnt/code/Booster-role.
+[17:38:37] TASK done: 
+[17:38:39] PROMPT: Write a 1-line conventional commit message summarizing these staged changes. Output ONLY the raw commit message, no markdown.
+diff --git a/.
