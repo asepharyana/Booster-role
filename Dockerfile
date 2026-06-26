@@ -14,4 +14,4 @@ COPY src/db ./src/db
 COPY drizzle.config.ts ./
 RUN bun add -d drizzle-kit
 
-CMD ["sh", "-c", "bun run db:migrate && bun run src/index.ts"]
+CMD ["sh", "-c", "bun run db:migrate; bun run src/index.ts"]
