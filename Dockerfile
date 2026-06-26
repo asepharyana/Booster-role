@@ -10,4 +10,8 @@ COPY src ./src
 
 ENV NODE_ENV=production
 
-CMD ["bun", "run", "src/index.ts"]
+COPY src/db ./src/db
+COPY drizzle.config.ts ./
+RUN bun add -d drizzle-kit
+
+CMD ["sh", "-c", "bun run db:migrate && bun run src/index.ts"]
