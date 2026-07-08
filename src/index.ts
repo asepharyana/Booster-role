@@ -23,7 +23,7 @@ const store = new DrizzleBoosterRoleStore(db);
 client.once("clientReady", () => {
   logger.info("Discord client ready", { bot: client.user?.tag ?? "unknown bot" });
 
-  // Start periodic cleanup for boost ends missed during downtime
+  // Start periodic cleanup for boost ends missed during downtime 
   startBoostCleanup(
     client,
     store,
