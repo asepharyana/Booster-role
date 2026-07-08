@@ -108,6 +108,7 @@ export class BoosterRoleService {
     const name = validateRoleName(input.name);
     assertRoleNameIsAvailable(name, (await this.roles.listRoles()).filter((role) => role.id !== record.roleId));
     await this.roles.updateRole(record.roleId, { name });
+    await this.store.update(guildId, userId, { name, updatedAt: this.now() });
   }
 
   async recolorRole(input: { guildId: string; userId: string; color: string; color2?: string | null }): Promise<void> {
@@ -118,6 +119,7 @@ export class BoosterRoleService {
     const secondaryColor = normalizeOptionalHexColor(color2 ?? null);
     const colors = resolveGradientColors(primaryColor, secondaryColor);
     await this.roles.updateRole(record.roleId, { colors });
+    await this.store.update(guildId, userId, { color: primaryColor, color2: secondaryColor, updatedAt: this.now() });
   }
 
   async setRoleIcon(input: { guildId: string; userId: string; icon: RoleIcon }): Promise<void> {
@@ -126,6 +128,7 @@ export class BoosterRoleService {
     assertCanManageStoredRole(this.identity(record), { guildId, userId, roleId: record.roleId });
     this.validateRoleIcon(icon);
     await this.roles.updateRole(record.roleId, { icon: icon.dataUri });
+    await this.store.update(guildId, userId, { icon: icon.dataUri, updatedAt: this.now() });
   }
 
   async deleteRole(input: { guildId: string; userId: string }): Promise<void> {

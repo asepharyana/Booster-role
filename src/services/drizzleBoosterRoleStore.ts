@@ -13,10 +13,13 @@ export type BoosterRoleRecord = {
   updatedAt: number;
 };
 
+export type BoosterRoleUpdate = Partial<Pick<BoosterRoleRecord, "name" | "color" | "color2" | "icon" | "updatedAt">>;
+
 export type BoosterRoleStore = {
   findByUser(guildId: string, userId: string): Promise<BoosterRoleRecord | null>;
   findByGuild(guildId: string): Promise<BoosterRoleRecord[]>;
   create(record: BoosterRoleRecord): Promise<void>;
+  update(guildId: string, userId: string, changes: BoosterRoleUpdate): Promise<void>;
   delete(guildId: string, userId: string): Promise<void>;
 };
 
@@ -34,6 +37,11 @@ type DatabaseLike = {
   };
   insert(table: typeof boosterRoles): {
     values(record: BoosterRoleRecord): Promise<unknown> | unknown;
+  };
+  update(table: typeof boosterRoles): {
+    set(changes: BoosterRoleUpdate): {
+      where(condition: unknown): Promise<unknown> | unknown;
+    };
   };
   delete(table: typeof boosterRoles): {
     where(condition: unknown): Promise<unknown> | unknown;
@@ -62,6 +70,13 @@ export class DrizzleBoosterRoleStore implements BoosterRoleStore {
 
   async create(record: BoosterRoleRecord): Promise<void> {
     await this.db.insert(boosterRoles).values(record);
+  }
+
+  async update(guildId: string, userId: string, changes: BoosterRoleUpdate): Promise<void> {
+    await this.db
+      .update(boosterRoles)
+      .set(changes)
+      .where(and(eq(boosterRoles.guildId, guildId), eq(boosterRoles.userId, userId)));
   }
 
   async delete(guildId: string, userId: string): Promise<void> {

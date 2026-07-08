@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { startBoostCleanup } from "./boostCleanupService";
-import type { BoosterRoleRecord } from "./drizzleBoosterRoleStore";
+import type { BoosterRoleRecord, BoosterRoleUpdate } from "./drizzleBoosterRoleStore";
 import type { RoleRepository } from "./discordRoleRepository";
 
 class MemoryStore {
@@ -16,6 +16,13 @@ class MemoryStore {
 
   async create(record: BoosterRoleRecord) {
     this.records.set(`${record.guildId}:${record.userId}`, record);
+  }
+
+  async update(guildId: string, userId: string, changes: BoosterRoleUpdate) {
+    const key = `${guildId}:${userId}`;
+    const record = this.records.get(key);
+    if (!record) return;
+    this.records.set(key, { ...record, ...changes });
   }
 
   async delete(guildId: string, userId: string) {

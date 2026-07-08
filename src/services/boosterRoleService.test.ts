@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { BoosterRoleService } from "./boosterRoleService";
-import type { BoosterRoleRecord } from "./drizzleBoosterRoleStore";
+import type { BoosterRoleRecord, BoosterRoleUpdate } from "./drizzleBoosterRoleStore";
 import type { RoleRepository } from "./discordRoleRepository";
 
 class MemoryRoleStore {
@@ -16,6 +16,13 @@ class MemoryRoleStore {
 
   async create(record: BoosterRoleRecord): Promise<void> {
     this.records.set(`${record.guildId}:${record.userId}`, record);
+  }
+
+  async update(guildId: string, userId: string, changes: BoosterRoleUpdate): Promise<void> {
+    const key = `${guildId}:${userId}`;
+    const record = this.records.get(key);
+    if (!record) return;
+    this.records.set(key, { ...record, ...changes });
   }
 
   async delete(guildId: string, userId: string): Promise<void> {
@@ -115,6 +122,7 @@ describe("BoosterRoleService", () => {
     await service.renameRole({ guildId: "guild", userId: "user", name: "Renamed" });
 
     expect(roles.roles.get(claimed.roleId)?.name).toBe("Renamed");
+    expect(await store.findByUser("guild", "user")).toEqual(expect.objectContaining({ name: "Renamed" }));
     await expect(service.renameRole({ guildId: "guild", userId: "attacker", name: "Stolen" })).rejects.toThrow("No booster role found");
   });
 
@@ -127,6 +135,7 @@ describe("BoosterRoleService", () => {
     await service.setRoleIcon({ guildId: "guild", userId: "user", icon: { contentType: "image/png", size: 128_000, dataUri: "data:image/png;base64,abc" } });
 
     expect(roles.roles.get(claimed.roleId)?.icon).toBe("data:image/png;base64,abc");
+    expect(await store.findByUser("guild", "user")).toEqual(expect.objectContaining({ icon: "data:image/png;base64,abc" }));
     await expect(service.setRoleIcon({ guildId: "guild", userId: "attacker", icon: { contentType: "image/png", size: 128_000, dataUri: "data:image/png;base64,abc" } })).rejects.toThrow("No booster role found");
   });
 
@@ -175,6 +184,7 @@ describe("BoosterRoleService", () => {
     const updated = roles.getRole(claimed.roleId);
     expect(updated).not.toBeNull();
     expect(updated!.colors).toEqual({ primaryColor: "#FF0000" });
+    expect(await store.findByUser("guild", "user")).toEqual(expect.objectContaining({ color: "#FF0000", color2: null }));
 
     // Other user cannot recolor
     await expect(service.recolorRole({ guildId: "guild", userId: "attacker", color: "#00FF00" })).rejects.toThrow("No booster role found");
@@ -191,6 +201,7 @@ describe("BoosterRoleService", () => {
     const updated = roles.getRole(claimed.roleId);
     expect(updated).not.toBeNull();
     expect(updated!.colors).toEqual({ primaryColor: "#FF0000", secondaryColor: "#0000FF" });
+    expect(await store.findByUser("guild", "user")).toEqual(expect.objectContaining({ color: "#FF0000", color2: "#0000FF" }));
   });
 
   test("deletes the stored role owned by the user", async () => {
