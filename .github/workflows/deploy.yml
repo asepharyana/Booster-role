@@ -1,113 +1,65 @@
-name: Deploy
+name: Build & Deploy (Nix)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
-
-concurrency:
-  group: deploy-production
-  cancel-in-progress: true
-
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/booster-role
-
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     environment: orangevps
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: DeterminateSystems/nix-installer-action@v16
         with:
-          bun-version: latest
+          determinate: false
+          extra-conf: |
+            sandbox = false
+            accept-flake-config = true
 
-      - name: Install dependencies
-        run: bun install
-
-      - name: Type check
-        run: bun run typecheck
-
-      - name: Run tests
-        run: bun test
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Set lowercase image name
-        run: echo "IMAGE_NAME=${IMAGE_NAME,,}" >> "$GITHUB_ENV"
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: DeterminateSystems/magic-nix-cache-action@v8
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          use-flakehub: false
 
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}
-
-      - name: Deploy on VPS
-        uses: appleboy/ssh-action@v1.2.0
+      - name: Build & Deploy
         env:
-          IMAGE_NAME: ${{ env.IMAGE_NAME }}
-          GHCR_USERNAME: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          DISCORD_CLIENT_ID: ${{ secrets.DISCORD_CLIENT_ID }}
-          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          BOOSTER_ROLE_ANCHOR_ROLE_ID: ${{ secrets.BOOSTER_ROLE_ANCHOR_ROLE_ID }}
-          BOOSTER_ELIGIBILITY_ROLE_ID: ${{ secrets.BOOSTER_ELIGIBILITY_ROLE_ID }}
-          BOOSTER_GREETING_CHANNEL_ID: ${{ secrets.BOOSTER_GREETING_CHANNEL_ID }}
-          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          envs: IMAGE_NAME,GHCR_USERNAME,GHCR_TOKEN,DISCORD_TOKEN,DISCORD_CLIENT_ID,DISCORD_GUILD_ID,DATABASE_URL,BOOSTER_ROLE_ANCHOR_ROLE_ID,BOOSTER_ELIGIBILITY_ROLE_ID,BOOSTER_GREETING_CHANNEL_ID,LOG_LEVEL
-          script: |
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          set -eu
+          STORE_PATH=$(nix build . --impure --option sandbox false --no-link --print-out-paths | tail -1)
+          echo "Store path: $STORE_PATH"
+
+          key_file=$(mktemp /tmp/deploy-key.XXXXXX)
+          printf '%s\n' "$VPS_SSH_KEY" > "$key_file"
+          chmod 600 "$key_file"
+          sed -i 's/\r$//' "$key_file"
+          ssh-keygen -y -f "$key_file" >/dev/null 2>&1 || { echo "SSH key invalid"; exit 1; }
+
+          export NIX_SSHOPTS="-i $key_file -o StrictHostKeyChecking=no"
+          nix copy --to "ssh://${VPS_USER}@${VPS_HOST}" "$STORE_PATH" 2>&1
+
+          ssh -i "$key_file" -o StrictHostKeyChecking=no "${VPS_USER}@${VPS_HOST}" "
             set -eu
-            mkdir -p /opt/booster-role
-            cd /opt/booster-role
-
-            cat > .env <<EOF
-            DISCORD_TOKEN=${DISCORD_TOKEN}
-            DISCORD_CLIENT_ID=${DISCORD_CLIENT_ID}
-            DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
-            DATABASE_URL=${DATABASE_URL:?DATABASE_URL is required}
-            BOOSTER_ROLE_ANCHOR_ROLE_ID=${BOOSTER_ROLE_ANCHOR_ROLE_ID}
-            BOOSTER_ELIGIBILITY_ROLE_ID=${BOOSTER_ELIGIBILITY_ROLE_ID:-1206431347925852162}
-            BOOSTER_GREETING_CHANNEL_ID=${BOOSTER_GREETING_CHANNEL_ID}
-            LOG_LEVEL=${LOG_LEVEL:-info}
-            EOF
-
-            cat > docker-compose.yml <<EOF
-            services:
-              booster-role:
-                image: ${IMAGE_NAME}:latest
-                container_name: booster-role
-                restart: unless-stopped
-                env_file:
-                  - .env
-            EOF
-
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+            if [ -d /nix/var/nix/profiles/booster-role ] && [ ! -L /nix/var/nix/profiles/booster-role ]; then
+              rm -rf /nix/var/nix/profiles/booster-role
+            fi
+            nix-env --profile /nix/var/nix/profiles/booster-role --set $STORE_PATH
+            systemctl daemon-reload
+            systemctl enable booster-role 2>/dev/null || true
+            systemctl restart booster-role
+            for i in \$(seq 1 30); do
+              systemctl is-active --quiet booster-role && break
+              sleep 1
+            done
+            systemctl is-active booster-role || {
+              echo \"=== SERVICE FAILED — journal ===\"
+              journalctl -u booster-role -n 40 --no-pager
+              exit 1
+            }
+            systemctl status booster-role --no-pager 2>&1 | head -8
+          " 2>&1
