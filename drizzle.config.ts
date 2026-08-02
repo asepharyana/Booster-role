@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./src/db/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgresql://booster_role:booster_role@localhost:5432/booster_role"
+    url: process.env.DATABASE_URL ?? "postgresql://asephs:***@100.121.180.82:6432/boost"
   }
 });

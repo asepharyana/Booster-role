@@ -14,7 +14,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     discordToken: requireEnv(env, "DISCORD_TOKEN"),
     discordClientId: requireEnv(env, "DISCORD_CLIENT_ID"),
     discordGuildId: requireEnv(env, "DISCORD_GUILD_ID"),
-    databaseUrl: env.DATABASE_URL ?? "postgresql://booster_role:booster_role@localhost:5432/booster_role",
+    databaseUrl: env.DATABASE_URL ?? "postgresql://asephs:***@100.121.180.82:6432/boost",
     boosterRoleAnchorRoleId: env.BOOSTER_ROLE_ANCHOR_ROLE_ID ?? null,
     boosterEligibilityRoleId: env.BOOSTER_ELIGIBILITY_ROLE_ID ?? "1206431347925852162",
     boostCleanupIntervalMs: Number(env.BOOST_CLEANUP_INTERVAL_MS) || 5 * 60 * 1000,

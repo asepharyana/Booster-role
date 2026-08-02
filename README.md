@@ -30,7 +30,7 @@ Isi `.env`:
 DISCORD_TOKEN=token_bot_discord
 DISCORD_CLIENT_ID=client_id_aplikasi_discord
 DISCORD_GUILD_ID=id_server_discord
-DATABASE_URL=postgresql://booster_role:booster_role@localhost:5432/booster_role
+DATABASE_URL=postgresql://asephs:***@100.121.180.82:6432/boost
 BOOSTER_ROLE_ANCHOR_ROLE_ID=id_role_pembatas_opsional
 BOOSTER_ELIGIBILITY_ROLE_ID=1206431347925852162
 LOG_LEVEL=info
@@ -47,7 +47,7 @@ bun run db:generate
 bun run db:migrate
 ```
 
-Pastikan `DATABASE_URL` mengarah ke database PostgreSQL external sebelum menjalankan migration.
+Pastikan `DATABASE_URL` mengarah ke database PostgreSQL external (pool PgBouncer imrnes `100.121.180.82:6432`) sebelum menjalankan migration.
 
 ## Menjalankan bot
 
