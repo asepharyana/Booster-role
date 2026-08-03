@@ -5,8 +5,34 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: booster-role-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Test
+        run: bun test
+
   build-and-deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment: orangevps
 
